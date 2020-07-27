@@ -1,14 +1,14 @@
 import React, {useState} from 'react';
 import {WebMapView} from './Components/Map';
-import {Layout, Menu, Breadcrumb } from 'antd';
+import {Layout, Menu, Badge } from 'antd';
 import {
   DesktopOutlined,
   PieChartOutlined,
   FileOutlined,
   TeamOutlined,
   UserOutlined,
+  NotificationOutlined
 } from '@ant-design/icons';
-import logo from './logo.svg';
 import './App.css';
 
 const {Header, Footer, Sider, Content} = Layout
@@ -27,8 +27,10 @@ function App() {
           <Menu.Item key="1" icon={<PieChartOutlined />}>
             Option 1
           </Menu.Item>
-          <Menu.Item key="2" icon={<DesktopOutlined />}>
-            Option 2
+          <Menu.Item key="2" >
+            <Badge count={5} dot>
+              <NotificationOutlined />
+            </Badge>
           </Menu.Item>
           <SubMenu key="sub1" icon={<UserOutlined />} title="User">
             <Menu.Item key="3">Tom</Menu.Item>

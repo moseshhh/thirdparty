@@ -12,7 +12,16 @@
 [data-theme="dark"] .site-layout .site-layout-background {
   background: #141414;
 }
+.site-layout-background{
+  position: relative;
+}
 
 .webmap {
   height: 100vh;
+}
+
+.button-notif{
+  position: absolute;
+  bottom: 15px;
+  margin-left: 15px;
 }

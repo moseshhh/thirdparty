@@ -1,8 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { loadModules } from 'esri-loader';
+import {Button, Badge} from 'antd'
+import {NotificationFilled} from '@ant-design/icons'
 
 export const WebMapView = () => {
   const mapRef = useRef("refMap");
+  const [refVisible, setRefVisible] = useState(false)
+
+  const buttonNotifOnClick = (e) => {
+    console.log(e)
+    setRefVisible(true)
+  }
 
   useEffect(
     () => {
@@ -30,7 +38,8 @@ export const WebMapView = () => {
           var layerRefinery = new FeatureLayer({
             url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/2",
             title : "Refinery",
-            visible : false
+            // visible : false
+            visible : refVisible
           });
           var layerPom = new FeatureLayer({
             url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/3",
@@ -92,6 +101,12 @@ export const WebMapView = () => {
           //   position: "top-right"
           // });
 
+          // let buttonNotif = document.getElementById('buttonNotif')
+          // buttonNotif.addEventListener('click', e => {
+          //   console.log("halo")
+          //   layerRefinery.visible = true
+          // })
+
 
           return () => {
             if (view) {
@@ -104,5 +119,17 @@ export const WebMapView = () => {
     }
   );
 
-  return <div className="webmap" ref={mapRef} />;
+  return (
+    <React.Fragment>
+      <div className="webmap" ref={mapRef} />
+      <div className="button-notif">
+        <Badge count={2}>
+          <Button type="primary" shape="circle" size="large" onClick={buttonNotifOnClick} >
+          {/* <Button type="primary" shape="circle" size="large" id="buttonNotif" > */}
+            <NotificationFilled />
+          </Button>
+        </Badge>
+      </div>
+    </React.Fragment>
+  )
 };
