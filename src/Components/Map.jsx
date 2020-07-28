@@ -31,7 +31,8 @@ export const WebMapView = () => {
             visible : false
           });
           var layerPlantationPoint = new FeatureLayer({
-            url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/1",
+            // url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/1",
+            url : "https://gisportal.wilmar.co.id/arcgisserver/rest/services/NewGISInteractiveMap_2/Pom_Supplier/MapServer/0",
             title : "Plantation Point",
             visible : false
           });
@@ -42,9 +43,12 @@ export const WebMapView = () => {
             visible : refVisible
           });
           var layerPom = new FeatureLayer({
-            url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/3",
-            title : "POM",
-            visible : false
+            // url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/3",
+            url : "https://gisportal.wilmar.co.id/arcgisserver/rest/services/NewGISInteractiveMap_2/Pom_Supplier/MapServer/1",
+            title : "POM Supplier",
+            visible : false,
+            popupEnabled : true,
+            outFields : [ '*' ] 
           });
           var layerPlantationArea = new FeatureLayer({
             url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/4",
@@ -97,6 +101,12 @@ export const WebMapView = () => {
 
           view.ui.add(expandLayerList, "top-right")
 
+          //POPUP TEMPLATE
+          let template = {
+            title : 'test'
+          }
+          layerPom.popupTemplate = template
+
           // view.ui.add(basemapGallery, {
           //   position: "top-right"
           // });
@@ -107,6 +117,23 @@ export const WebMapView = () => {
           //   layerRefinery.visible = true
           // })
 
+          // VIEW EVENT
+          // view.on('click', e => {
+          //   console.log(e)
+          //   view.hitTest(e.screenPoint)
+          //     .then(
+          //       response => {
+          //         // let graphic = response.results[0].graphic
+          //         // console.log(graphic.attributes)
+          //         view.popup.open({
+          //           title : "test",
+          //           location : e.mapPoint
+          //         })
+          //         // console.log(graphic.attributes.COUNTRYNAM)
+          //       }
+          //     )
+
+          // })
 
           return () => {
             if (view) {
@@ -124,8 +151,8 @@ export const WebMapView = () => {
       <div className="webmap" ref={mapRef} />
       <div className="button-notif">
         <Badge count={2}>
-          <Button type="primary" shape="circle" size="large" onClick={buttonNotifOnClick} >
-          {/* <Button type="primary" shape="circle" size="large" id="buttonNotif" > */}
+          {/* <Button type="primary" shape="circle" size="large" onClick={buttonNotifOnClick} > */}
+          <Button type="primary" shape="circle" size="large" id="buttonNotif" >
             <NotificationFilled />
           </Button>
         </Badge>
