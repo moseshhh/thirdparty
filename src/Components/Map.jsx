@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactDOMServer from 'react-dom/server'
+import ReactDOM from 'react-dom'
 import { loadModules } from 'esri-loader';
 import {Button, Badge} from 'antd'
 import {NotificationFilled} from '@ant-design/icons'
@@ -18,13 +20,26 @@ export const WebMapView = () => {
       loadModules(['esri/Map', 'esri/views/MapView', 'esri/layers/VectorTileLayer', 'esri/widgets/BasemapGallery', 'esri/widgets/Expand', "esri/widgets/LayerList", "esri/layers/FeatureLayer", "esri/layers/GroupLayer"], { css: true })
         .then(([ArcGISMap, MapView, VectorTileLayer, BasemapGallery, Expand, LayerList, FeatureLayer, GroupLayer]) => {
 
+          //
           // MAP INIT
+          //
           const map = new ArcGISMap({
             basemap: 'topo-vector'
           });
 
+          //
+          // VIEW INIT
+          //
+          const view = new MapView({
+            container: mapRef.current,
+            map: map,
+            center: [118, 0],
+            zoom: 6
+          });
+
+          //
           // LAYER
-          // var fl = new FeatureLayer("https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/0");//city limit
+          //
           var layerPkCrushing = new FeatureLayer({
             url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/0",
             title : "PK Crushing",
@@ -58,25 +73,14 @@ export const WebMapView = () => {
           var gl = new GroupLayer({
             title : "Industries"
           });
-          // var gl1 = new GroupLayer();
+          //Basemap WILMAR
+          var basemapWilmar = new VectorTileLayer({
+            url: 'https://gisportal.wilmar.co.id/arcgisserver/rest/services/Hosted/Wilmar_Basemap2/VectorTileServer?f=pjson'
+          });
 
-          // gl1.addMany([fl1, fl2, fl3]);
           gl.addMany([layerPlantationArea, layerPkCrushing, layerPlantationPoint, layerRefinery, layerPom,]);
-
           map.add(gl)
 
-          //Basemap WILMAR
-          let basemapWilmar = new VectorTileLayer({
-            url: 'https://gisportal.wilmar.co.id/arcgisserver/rest/services/Hosted/Wilmar_Basemap2/VectorTileServer?f=pjson'
-          })
-
-          // VIEW INIT
-          const view = new MapView({
-            container: mapRef.current,
-            map: map,
-            center: [118, 0],
-            zoom: 6
-          });
 
           // BASEMAP GALLERY
           var basemapGallery = new BasemapGallery({
@@ -98,42 +102,19 @@ export const WebMapView = () => {
             content : layerList,
             expandTooltip : 'Layer List'
           })
-
           view.ui.add(expandLayerList, "top-right")
 
-          //POPUP TEMPLATE
-          let template = {
-            title : 'test'
+
+          //POPUP SET
+          let pomPopupTemplate = {
+            title : 'POM Suplier',
           }
-          layerPom.popupTemplate = template
+          let pomPopupDiv = document.createElement('div')
+          pomPopupTemplate.content = pomPopupDiv
+          ReactDOM.render(<Button type="primary">Trace</Button>, pomPopupDiv)
 
-          // view.ui.add(basemapGallery, {
-          //   position: "top-right"
-          // });
+          layerPom.popupTemplate = pomPopupTemplate
 
-          // let buttonNotif = document.getElementById('buttonNotif')
-          // buttonNotif.addEventListener('click', e => {
-          //   console.log("halo")
-          //   layerRefinery.visible = true
-          // })
-
-          // VIEW EVENT
-          // view.on('click', e => {
-          //   console.log(e)
-          //   view.hitTest(e.screenPoint)
-          //     .then(
-          //       response => {
-          //         // let graphic = response.results[0].graphic
-          //         // console.log(graphic.attributes)
-          //         view.popup.open({
-          //           title : "test",
-          //           location : e.mapPoint
-          //         })
-          //         // console.log(graphic.attributes.COUNTRYNAM)
-          //       }
-          //     )
-
-          // })
 
           return () => {
             if (view) {
