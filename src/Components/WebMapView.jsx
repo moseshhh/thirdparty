@@ -1,10 +1,37 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom'
 import { loadModules, loadCss } from 'esri-loader';
-import { Button, Badge, Descriptions, Divider } from 'antd'
+import { Button, Badge, Descriptions, Divider, Drawer } from 'antd'
 import { NotificationFilled } from '@ant-design/icons'
 
+const DrawerDeforestation = (props) => {
+  const [visibleDrawer, setVisibleDrawer] = useState(false)
+  const showDrawer = () => {
+    // setVisibleDrawer(true);
+    visibleDrawer = true
+  };
+
+  const onClose = () => {
+    // setVisibleDrawer(false);
+    visibleDrawer = false
+  };
+
+  return (
+    <Drawer
+      title="Basic Drawer"
+      placement="right"
+      closable={true}
+      onClose={onClose}
+      visible={visibleDrawer}
+    >
+    Test
+    </Drawer>
+  )
+}
+
 export const WebMapView = () => {
+
+
   const mapRef = useRef("refMap");
 
   useEffect(
@@ -13,6 +40,10 @@ export const WebMapView = () => {
       // loadCss('https://js.arcgis.com/4.12/themes/dark/main.css', 'style')
       loadModules(['esri/Map', 'esri/views/MapView', 'esri/layers/VectorTileLayer', 'esri/widgets/BasemapGallery', 'esri/widgets/Expand', "esri/widgets/LayerList", "esri/layers/FeatureLayer", "esri/layers/GroupLayer", "esri/Graphic", "esri/layers/GraphicsLayer"], { css: true })
         .then(([ArcGISMap, MapView, VectorTileLayer, BasemapGallery, Expand, LayerList, FeatureLayer, GroupLayer, Graphic, GraphicsLayer]) => {
+          // const [visibleDrawer, setVisibleDrawer] = useState(false)
+          let visibleDrawer = false
+
+
           //===============================================================
           // LOCAL COMPONENT
           //===============================================================
@@ -28,54 +59,20 @@ export const WebMapView = () => {
             }
 
             // Function to draw spider map from POM to refinery
-            let f_traceRefinery = (pomid) => {
-              setTrace(true)
-              fetch(`http://10.7.12.21:8000/service/WGService.asmx/_GetRefinery_?pom=${pomid}`)
-                .then(response => response.json())
-                .then(resultData => {
-                  // DRAW LINE
-                  let lineSymbol = {
-                    type: 'simple-line',
-                    color: [226, 119, 40],
-                    width: 2
-                  }
-
-                  resultData.map(el => {
-                    let pet = [
-                      [props.position.longitude, props.position.latitude],
-                      [parseFloat(el.X_Coor), parseFloat(el.Y_Coor)]
-                    ]
-
-                    console.log(pet)
-                    let spiderLine = {
-                      type: "polyline",
-                      paths: [
-                        [props.position.longitude, props.position.latitude],
-                        [parseFloat(el.X_Coor), parseFloat(el.Y_Coor)]
-                      ]
-                    }
-
-                    let spiderLineGraphic = new Graphic({
-                      geometry: spiderLine,
-                      symbol: lineSymbol
-                    })
-
-                    view.graphics.add(spiderLineGraphic)
-                    layerRefinery.visible = true
-                  })
-
-                })
-                .catch(error => console.log('error', error));
-
-            }
-
             let f_traceData = (id, layername) => {
               let url
-              if(layername="Refinery"){
+              console.log(layername)
+              if(layername === "Refinery"){
                 url = `http://10.7.12.21:8000/service/WGService.asmx/_GetPOMSupplier_?refinery=${id}`
+                layerPom.visible = true
+              }
+              else if(layername ==="POM"){
+                url = `http://10.7.12.21:8000/service/WGService.asmx/_GetRefinery_?pom=${id}`
+                layerRefinery.visible = true
               }
 
               setTrace(true)
+
               fetch(url)
                 .then(response => response.json())
                 .then(resultData => {
@@ -102,7 +99,7 @@ export const WebMapView = () => {
                     })
 
                     view.graphics.add(spiderLineGraphic)
-                    layerRefinery.visible = true
+                    
                   })
 
                 })
@@ -117,18 +114,14 @@ export const WebMapView = () => {
             }
 
             let f_button = () => {
-              console.log(props.title)
-              if (props.title === "POM") {
-                if (isTrace) {
-                  return <Button type="primary" onClick={f_clearGraphic} danger >Clear</Button>
-                }
-                return <Button type="primary" onClick={() => f_traceRefinery(data.pomid)} >Trace</Button>
-              }
-              else if(props.title === "Refinery"){
-                if (isTrace) {
-                  return <Button type="primary" onClick={f_clearGraphic} danger >Clear</Button>
-                }
-                return <Button type="primary" onClick={() => f_traceData(data.rfid, props.title)} >Trace</Button>
+
+              switch(props.title){
+                case "POM":
+                  return  isTrace ? <Button type="primary" onClick={f_clearGraphic} danger >Clear</Button> : <Button type="primary" onClick={() => f_traceData(data.pomid, props.title)} >Trace</Button>
+                  break
+                case "Refinery":
+                  return isTrace == true ? <Button type="primary" onClick={f_clearGraphic} danger >Clear</Button> : <Button type="primary" onClick={() => f_traceData(data.rfid, props.title)} >Trace</Button>
+                  break
               }
             }
 
@@ -145,6 +138,7 @@ export const WebMapView = () => {
           }
 
 
+
           //===============================================================
           // BASE FUNCTION
           //===============================================================
@@ -157,6 +151,12 @@ export const WebMapView = () => {
             return pomPopupDiv
           }
 
+          //===============================================================
+          // DOM
+          //===============================================================
+          // document.getElementById("button-form-deforestation").addEventListener('click', function(e){
+          //   console.log(e)
+          // })
 
           //===============================================================
           // MAP INIT
@@ -289,14 +289,14 @@ export const WebMapView = () => {
   return (
     <React.Fragment>
       <div className="webmap" ref={mapRef} />
-      <div className="button-notif">
+      {/* <div className="button-notif">
         <Badge count={2}>
-          {/* <Button type="primary" shape="circle" size="large" onClick={buttonNotifOnClick} > */}
           <Button type="primary" shape="circle" size="large" id="buttonNotif" >
             <NotificationFilled />
           </Button>
         </Badge>
-      </div>
+      </div> */}
+
     </React.Fragment>
   )
 };

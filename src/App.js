@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
-import {WebMapView} from './Components/Map';
+import {WebMapView} from './Components/WebMapView';
+import ButtonNotif from './Components/ButtonNotif'
 import {Layout, Menu, Badge } from 'antd';
 import {
   DesktopOutlined,
@@ -43,9 +44,9 @@ function App() {
           <Content style={{ margin: '0 0px' }}>
             <div className="site-layout-background" style={{ minHeight: '100vh' }}>
               <WebMapView />
+              <ButtonNotif />
             </div>
           </Content>
-          {/* <Footer style={{ textAlign: 'center' }}>Ant Design ©2018 Created by Ant UED</Footer> */}
         </Layout>
     </Layout>
 
