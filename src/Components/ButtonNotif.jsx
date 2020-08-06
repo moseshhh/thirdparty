@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom'
 import { loadModules, loadCss } from 'esri-loader';
+import {Consumer} from '../Context'
 import { Button, Badge, Descriptions, Divider, Drawer, DatePicker, Form } from 'antd'
 import { NotificationFilled } from '@ant-design/icons'
 
@@ -25,27 +26,34 @@ const formItemLayout = {
 
 const DeforestationForm = () => {
   return(
-    <Form name="deforestation_control" {...formItemLayout} >
-      <Form.Item name="range-picker" label="Time Range">
-        <DatePicker.RangePicker />
-      </Form.Item>
-      <Form.Item
-        wrapperCol={{
-          xs: {
-            span: 24,
-            offset: 0,
-          },
-          sm: {
-            span: 16,
-            offset: 8,
-          },
-        }}
-      >
-        <Button type="primary" htmlType="submit" id="button-form-deforestation">
-          Submit
-        </Button>
-      </Form.Item>
-    </Form>
+    <Consumer>
+      {
+        (context) => (
+          <Form name="deforestation_control" {...formItemLayout} onFinish={context.f_setDfrsFormData} >
+            <Form.Item name="range-picker" label="Time Range">
+              <DatePicker.RangePicker />
+            </Form.Item>
+            <Form.Item
+              wrapperCol={{
+                xs: {
+                  span: 24,
+                  offset: 0,
+                },
+                sm: {
+                  span: 16,
+                  offset: 8,
+                },
+              }}
+            >
+              <Button type="primary" htmlType="submit" id="button-form-deforestation">
+                Submit
+              </Button>
+            </Form.Item>
+          </Form>
+        )
+      }
+    </Consumer>
+
   )
 }
 

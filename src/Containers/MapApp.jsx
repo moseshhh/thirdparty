@@ -3,11 +3,11 @@ import ReactDOM from 'react-dom';
 import {ContextType} from '../Context'
 import { loadModules } from 'esri-loader';
 import { Button, Descriptions, Divider, Drawer } from 'antd'
-
+import ButtonNotif from '../Components/ButtonNotif';
 
 const WsEndPoint = "http://10.7.12.21:8000/service/WGService.asmx/"
 
-export class WebMapView extends React.Component {
+class MapApp extends React.Component {
   static contextType = ContextType
 
   constructor(props, context) {
@@ -47,11 +47,11 @@ export class WebMapView extends React.Component {
             let url
             if (layername === "Refinery") {
               url = `${WsEndPoint}_GetPOMSupplier_?refinery=${id}`
-              layerPom.visible = true
+              this.layerPom.visible = true
             }
             else if (layername === "POM") {
               url = `${WsEndPoint}_GetRefinery_?pom=${id}`
-              layerRefinery.visible = true
+              this.layerRefinery.visible = true
             }
 
             // setTrace(true)
@@ -91,7 +91,7 @@ export class WebMapView extends React.Component {
 
           let f_clearGraphic = () => {
             this.view.graphics.removeAll()
-            layerRefinery.visible = false
+            this.layerRefinery.visible = false
             setTrace(false)
           }
 
@@ -158,50 +158,51 @@ export class WebMapView extends React.Component {
         //==============================================================
         // LAYER
         //==============================================================
-        var layerPkCrushing = new FeatureLayer({
+        this.layerPkCrushing = new FeatureLayer({
           url: "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/0",
           title: "PK Crushing",
           visible: false
         });
+
         this.layerPlantationPoint = new FeatureLayer({
-          // url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/1",
           url: "https://idjktsvr10.wil.local/arcgis/rest/services/NewGISInteractiveMap/Third_Party_Supplier/MapServer/0",
           title: "Oil Palm Plantation of Third Party Supplier",
           visible: false
         });
-        var layerRefinery = new FeatureLayer({
+
+        this.layerRefinery = new FeatureLayer({
           url: "https://idjktsvr10.wil.local/arcgis/rest/services/NewGISInteractiveMap/Layer_Refinery_201908_sde/MapServer/0",
           title: "Refinery",
           visible: false,
           popupEnabled: true,
-          // outFields : [ 'rfid', 'RFName']
           outFields: ['*']
         });
-        var layerPom = new FeatureLayer({
-          // url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/3",
-          // url : "https://gisportal.wilmar.co.id/arcgisserver/rest/services/NewGISInteractiveMap_2/Pom_Supplier/MapServer/1",
+
+        this.layerPom = new FeatureLayer({
           url: "https://idjktsvr10.wil.local/arcgis/rest/services/NewGISInteractiveMap/Third_Party_Supplier/MapServer/1",
           title: "POM Supplier",
           visible: false,
           popupEnabled: true,
           outFields: ['pomid', 'PomName', 'CompanyNam', 'PlaceName', 'Tankcap', 'Silocap']
         });
-        var layerPlantationArea = new FeatureLayer({
-          // url : "https://idjktsvr10.wil.local/arcgis/rest/services/industries_MIL1/MapServer/4",
+
+        this.layerPlantationArea = new FeatureLayer({
           url: "https://idjktsvr10.wil.local/arcgis/rest/services/NewGISInteractiveMap/Third_Party_Supplier/MapServer/2",
           title: "Oil Palm Area",
           visible: false
         });
-        var gl = new GroupLayer({
-          title: "Industries"
-        });
+
         //Basemap WILMAR
         var basemapWilmar = new VectorTileLayer({
           url: 'https://gisportal.wilmar.co.id/arcgisserver/rest/services/Hosted/Wilmar_Basemap2/VectorTileServer?f=pjson'
         });
 
-        gl.addMany([layerPlantationArea, layerPkCrushing, this.layerPlantationPoint, layerRefinery, layerPom,]);
-        map.add(gl)
+        var glIndustries = new GroupLayer({
+          title: "Industries"
+        });
+
+        glIndustries.addMany([ this.layerPlantationArea, this.layerPkCrushing, this.layerPlantationPoint, this.layerRefinery, this.layerPom, ]);
+        map.add(glIndustries);
 
         //=================================================================
         // BASEMAP GALLERY
@@ -246,25 +247,19 @@ export class WebMapView extends React.Component {
           title: 'POM Suplier',
           content: (target) => generateContent(target, "POM")
         }
-        layerPom.popupTemplate = pomPopupTemplate
+        this.layerPom.popupTemplate = pomPopupTemplate
 
         let refineryPopupTemplate = {
           title: 'Refinery',
           content: (target) => generateContent(target, "Refinery")
         }
-        layerRefinery.popupTemplate = refineryPopupTemplate
+        this.layerRefinery.popupTemplate = refineryPopupTemplate
 
       });
 
-      setTimeout(() => {
-        this.setState({
-          tes : false
-        })
-      }, 25000);
   }
 
   componentDidUpdate(){
-    // console.log(this.state, this.view)
     console.log(this.context)
     this.layerPlantationPoint.visible = true
   }
@@ -279,7 +274,10 @@ export class WebMapView extends React.Component {
     return (
       <React.Fragment>
         <div className="webmap" ref={this.mapRef} />
+        <ButtonNotif />
       </React.Fragment>
     )
   }
 }
+
+export default MapApp

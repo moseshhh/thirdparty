@@ -1,54 +1,29 @@
-import React, {useState} from 'react';
-import {WebMapView} from './Components/WebMapView';
-import ButtonNotif from './Components/ButtonNotif'
-import {Layout, Menu, Badge } from 'antd';
-import {
-  DesktopOutlined,
-  PieChartOutlined,
-  FileOutlined,
-  TeamOutlined,
-  UserOutlined,
-  NotificationOutlined
-} from '@ant-design/icons';
+import React from 'react';
+import ButtonNotif from './Components/ButtonNotif';
+import Sidebar from './Containers/Sidebar'
+import MapApp from './Containers/MapApp'
+import { ContextProvider } from './Context'
+import { Layout } from 'antd';
 import './App.css';
 
-const {Header, Footer, Sider, Content} = Layout
-const { SubMenu } = Menu;
+const { Content } = Layout
 
 function App() {
-  const [collapsed, setCollapsed] = useState(true)
-
   return (
-    // <WebMapView />
-    <Layout style={{minHeight : '100vh'}}>
-      {/* <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}> */}
-      <Sider collapsed={collapsed}>
-        <div className="logo" />
-        <Menu theme="dark" defaultSelectedKeys={['1']} mode="inline">
-          <Menu.Item key="1" icon={<PieChartOutlined />}>
-            Maps
-          </Menu.Item>
-          <SubMenu key="sub1" icon={<UserOutlined />} title="User">
-            <Menu.Item key="3">Tom</Menu.Item>
-            <Menu.Item key="4">Bill</Menu.Item>
-            <Menu.Item key="5">Alex</Menu.Item>
-          </SubMenu>
-          <SubMenu key="sub2" icon={<TeamOutlined />} title="Team">
-            <Menu.Item key="6">Team 1</Menu.Item>
-            <Menu.Item key="8">Team 2</Menu.Item>
-          </SubMenu>
-          <Menu.Item key="9" icon={<FileOutlined />} />
-        </Menu>
-      </Sider>
-      <Layout className="site-layout">
+    <ContextProvider>
+      <Layout style={{ minHeight: '100vh' }}>
+        <Sidebar />
+        <Layout className="site-layout">
           <Content style={{ margin: '0 0px' }}>
             <div className="site-layout-background" style={{ minHeight: '100vh' }}>
-              <WebMapView />
-              <ButtonNotif />
+              {/* <WebMapView /> */}
+              <MapApp />
+              {/* <ButtonNotif /> */}
             </div>
           </Content>
         </Layout>
-    </Layout>
+      </Layout>
+    </ContextProvider>
 
   );
 }
