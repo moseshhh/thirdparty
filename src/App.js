@@ -16,9 +16,7 @@ function App() {
         <Layout className="site-layout">
           <Content style={{ margin: '0 0px' }}>
             <div className="site-layout-background" style={{ minHeight: '100vh' }}>
-              {/* <WebMapView /> */}
               <MapApp />
-              {/* <ButtonNotif /> */}
             </div>
           </Content>
         </Layout>
