@@ -34,8 +34,8 @@ class MapApp extends React.Component {
   }
 
   componentDidMount() {
-    loadModules(['esri/Map', 'esri/views/MapView', 'esri/layers/VectorTileLayer', 'esri/widgets/BasemapGallery', 'esri/widgets/Expand', "esri/widgets/LayerList", "esri/layers/FeatureLayer", "esri/layers/GroupLayer", "esri/Graphic", "esri/layers/GraphicsLayer", "esri/widgets/Legend", "esri/geometry/geometryEngine"], { css: true }).then(
-      ([ArcGISMap, MapView, VectorTileLayer, BasemapGallery, Expand, LayerList, FeatureLayer, GroupLayer, Graphic, GraphicsLayer, Legend, geometryEngine]) => {
+    loadModules(['esri/Map', 'esri/views/MapView', 'esri/layers/VectorTileLayer', 'esri/widgets/BasemapGallery', 'esri/widgets/Expand', "esri/widgets/LayerList", "esri/layers/FeatureLayer", "esri/layers/GroupLayer", "esri/Graphic", "esri/layers/GraphicsLayer", "esri/widgets/Legend", "esri/geometry/geometryEngine", "esri/core/watchUtils", "esri/widgets/DistanceMeasurement2D", "esri/tasks/support/Query"], { css: true }).then(
+      ([ArcGISMap, MapView, VectorTileLayer, BasemapGallery, Expand, LayerList, FeatureLayer, GroupLayer, Graphic, GraphicsLayer, Legend, geometryEngine, watchUtils, DistanceMeasurement2D, Query]) => {
 
         //===============================================================
         // LOCAL COMPONENT
@@ -123,12 +123,13 @@ class MapApp extends React.Component {
         }
 
         const DfrsPopupContent = (props) => {
+          const [pomContent, setPomContent] = useState([])
           const layerOptions = [
             { label : 'POM', value : this.layerPom  },
             { label : 'Reffinery', value : this.layerRefinery },
             { label : 'Concession Area', value : this.layerPlantationArea }]
 
-          let onCheckboxChange = layerList => {
+          const onCheckboxChange = layerList => {
             layerOptions.map( layer => {
               if( layerList.includes( layer.value ) ){
                 layer.value.visible = true
@@ -136,6 +137,28 @@ class MapApp extends React.Component {
                 layer.value.visible = false
               } 
             })
+          }
+
+          const buttonOnClick = () => {
+            let geom = this.bufferLayer.graphics.getItemAt(0).geometry
+            // console.log(geom)
+            const query = new Query()
+            // query.where = "pomid = 7"
+            query.geometry = geom
+            query.spatialRelationship = "intersects";
+            this.layerPom.queryFeatures(query).then( response => {
+              // console.log(response.features)
+              let features = response.features
+              let pom = features.map(el => {
+                // console.log(el.attributes.PomName)
+                return el.attributes.PomName
+              })
+              console.log(pom)
+              setPomContent(pom)
+
+            })
+            // this.layerPom.definitionExpression = "pomid = 7"
+
           }
 
           return(
@@ -150,7 +173,12 @@ class MapApp extends React.Component {
               {/* <Checkbox.Group options={layerOptions} onChange={ props.onCheckboxChange } /> */}
               <Checkbox.Group options={layerOptions} onChange={ onCheckboxChange } />
               <Divider />
-              <Button type="primary">Export to Report</Button>
+              {pomContent.map(el => {
+                return <li key={el}>{el}</li>
+              })}
+              <Divider />
+              {/* <Button type="primary" onClick={ props.onClick }>Export to Report</Button> */}
+              <Button type="primary" onClick={ buttonOnClick }>Export to Report</Button>
             </>
           )
         }
@@ -189,6 +217,9 @@ class MapApp extends React.Component {
         // Generate table to popup
         let generateContent = (target, title) => {
           console.log(target, title)
+          
+          let pomContent = ''
+
           let popupDiv = document.createElement('div')
 
           if(title === "POM"){
@@ -197,18 +228,21 @@ class MapApp extends React.Component {
           } else if (title === "Deforestation Point"){
             dpPopupTemplate.content = popupDiv
 
-            let onSliderChange = (bufferSize) => {
+            const onSliderChange = (bufferSize) => {
               let pointGeometry = target.graphic.geometry
               updateBufferGraphic(pointGeometry, bufferSize)
             }
 
-            let onCheckboxChange = layerList => {
+            const onCheckboxChange = layerList => {
               layerList.map( layer => {
                 layer.visible = true
               })
             }
 
+
+
             // ReactDOM.render(<DfrsPopupContent onSliderChange={onSliderChange} onCheckboxChange={onCheckboxChange} />, popupDiv)
+            // ReactDOM.render(<DfrsPopupContent onSliderChange={onSliderChange} onClick={buttonOnClick} content={pomContent ? pomContent : null} />, popupDiv)
             ReactDOM.render(<DfrsPopupContent onSliderChange={onSliderChange} />, popupDiv)
 
           }
@@ -240,6 +274,11 @@ class MapApp extends React.Component {
           zoom: 5
         });
 
+        this.view.when(
+          function(){console.log("sukses") },
+          function(err){console.log(err)}
+        )
+
         //==============================================================
         // LAYER
         //==============================================================
@@ -247,7 +286,8 @@ class MapApp extends React.Component {
         // GROUP PLANTATION
         //
         this.layerPlantationPoint = new FeatureLayer({
-          url: "https://idjktsvr10.wil.local/arcgis/rest/services/NewGISInteractiveMap/Third_Party_Supplier/MapServer/0",
+          // url: "https://idjktsvr10.wil.local/arcgis/rest/services/NewGISInteractiveMap/Third_Party_Supplier/MapServer/0",
+          url: "https://idjktsvr10.wil.local/arcgis/rest/services/NewGISInteractiveMap/OilPalm_Plantation_TP_Supplier/MapServer/0",
           title: "Oil Palm Plantation of Third Party Supplier",
           visible: false
         });
@@ -306,8 +346,12 @@ class MapApp extends React.Component {
 
         // SKETCH LAYER
         //
-        this.sketchLayer = new GraphicsLayer()
-        this.bufferLayer = new GraphicsLayer()
+        this.sketchLayer = new GraphicsLayer({
+          listMode : "hide"
+        })
+        this.bufferLayer = new GraphicsLayer({
+          listMode : "hide"
+        })
         map.addMany([this.sketchLayer, this.bufferLayer])
 
         // LAYER GROUPING
@@ -326,7 +370,7 @@ class MapApp extends React.Component {
 
         glIndustries.addMany([ this.layerPkCrushing, this.layerRefinery, this.layerPom, ]);
         glPlantation.addMany([ this.layerPlantationArea, this.layerPlantationPoint ])
-        glDeforestation.addMany([ this.layerDeforestationPoint, this.layerDeforestationArea ])
+        glDeforestation.addMany([ this.layerDeforestationArea, this.layerDeforestationPoint,  ])
         map.addMany([ glPlantation, glIndustries, glDeforestation]);
 
         //=================================================================
@@ -385,13 +429,25 @@ class MapApp extends React.Component {
         }
         this.layerDeforestationPoint.popupTemplate = dpPopupTemplate 
 
-      });
+        //==================================================================
+        // EVENT
+        //==================================================================
+        watchUtils.whenTrue(this.view, "stationary", () => {
+          if(this.view.zoom >= 10){
+            console.log(this.view.zoom)
+            this.layerDeforestationArea.visible = this.layerDeforestationPoint.visible ? true : false 
+          }
+          else{
+            this.layerDeforestationArea.visible = false
+          }
+        })
 
+      });
   }
 
   componentDidUpdate(){
     console.log(this.context)
-    this.layerPlantationPoint.visible = true
+    // this.layerPlantationPoint.visible = true
   }
 
   componentWillMount() {
@@ -404,7 +460,7 @@ class MapApp extends React.Component {
     return (
       <React.Fragment>
         <div className="webmap" ref={this.mapRef} />
-        <ButtonNotif onClick={ ()=>this.f_showDrawer(true) } />
+        <ButtonNotif onClick={ ()=>this.f_showDrawer(true) } count={4} />
         <Drawer
           title="Deforestation"
           placement="right"
