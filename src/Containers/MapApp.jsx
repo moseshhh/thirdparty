@@ -42,7 +42,8 @@ class MapApp extends React.Component {
     // this.layerDeforestationPoint.queryFeatures(query).then(response => console.log("query", response.features))
     this.layerDeforestationPoint.queryFeatures(query).then(response => this.setState({ dfrsResult : response.features }) )
 
-    this.layerDeforestationPoint.definitionExpression = `start_date >= '${startDate}' and end_date <= '${endDate}'`
+    // this.layerDeforestationPoint.definitionExpression = `start_date >= '${startDate}' and end_date <= '${endDate}'`
+    this.layerDeforestationPoint.definitionExpression = `end_date >= '${startDate}' and end_date <= '${endDate}'`
     this.layerDeforestationPoint.visible = true
   }
 
