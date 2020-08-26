@@ -12,6 +12,7 @@
     "axios": "^0.19.2",
     "bootstrap": "^4.5.0",
     "esri-loader": "^2.15.0",
+    "moment": "^2.27.0",
     "react": "^16.13.1",
     "react-bootstrap": "^1.2.2",
     "react-dom": "^16.13.1",
@@ -40,6 +41,7 @@
     ]
   },
   "devDependencies": {
+    "gh-pages": "^3.1.0",
     "react-redux": "^7.2.1",
     "redux": "^4.0.5"
   }

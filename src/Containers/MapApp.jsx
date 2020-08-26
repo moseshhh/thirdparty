@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import {ContextType} from '../Context'
 import { loadModules } from 'esri-loader';
-import { Button, Descriptions, Divider, Drawer, Slider, Checkbox } from 'antd'
+import { Button, Descriptions, Divider, Drawer, Slider, Checkbox, Space, Result, Empty } from 'antd'
 import ButtonNotif from '../Components/ButtonNotif';
 import DeforestationForm from '../Components/DeforestationForm';
+import DfrsCard from '../Components/DfrsCard'
+import moment from 'moment'
+import PickerButton from 'antd/lib/date-picker/PickerButton';
 
 const WsEndPoint = "http://10.7.12.21:8000/service/WGService.asmx/"
 
@@ -15,7 +18,8 @@ class MapApp extends React.Component {
     super(props, context)
     this.mapRef = React.createRef()
     this.state = {
-      isDrawerShow : false
+      isDrawerShow : false,
+      dfrsResult : null
     }
   }
 
@@ -28,18 +32,27 @@ class MapApp extends React.Component {
     })
   }
 
-  f_dfrsFormOnFinish = (data) => {
-    console.log(data)
+  f_dfrsFormOnFinish = (datamoment) => {
+    // console.log(datamoment["range-picker"][0].format("YYYY-MM-DD"))
+    let startDate = datamoment["range-picker"][0].format("YYYY-MM-DD")
+    let endDate = datamoment["range-picker"][1].format("YYYY-MM-DD")
+
+    let query =  this.layerDeforestationPoint.createQuery()
+    query.where = `start_date >= '${startDate}' and end_date <= '${endDate}'`
+    // this.layerDeforestationPoint.queryFeatures(query).then(response => console.log("query", response.features))
+    this.layerDeforestationPoint.queryFeatures(query).then(response => this.setState({ dfrsResult : response.features }) )
+
+    this.layerDeforestationPoint.definitionExpression = `start_date >= '${startDate}' and end_date <= '${endDate}'`
     this.layerDeforestationPoint.visible = true
   }
 
   componentDidMount() {
     loadModules(['esri/Map', 'esri/views/MapView', 'esri/layers/VectorTileLayer', 'esri/widgets/BasemapGallery', 'esri/widgets/Expand', "esri/widgets/LayerList", "esri/layers/FeatureLayer", "esri/layers/GroupLayer", "esri/Graphic", "esri/layers/GraphicsLayer", "esri/widgets/Legend", "esri/geometry/geometryEngine", "esri/core/watchUtils", "esri/widgets/DistanceMeasurement2D", "esri/tasks/support/Query"], { css: true }).then(
       ([ArcGISMap, MapView, VectorTileLayer, BasemapGallery, Expand, LayerList, FeatureLayer, GroupLayer, Graphic, GraphicsLayer, Legend, geometryEngine, watchUtils, DistanceMeasurement2D, Query]) => {
-
         //===============================================================
         // LOCAL COMPONENT
         //===============================================================
+        // Table deskripsi pada popup information
         const DescriptionTable = (props) => {
           let [isTrace, setTrace] = useState(false)
 
@@ -122,8 +135,10 @@ class MapApp extends React.Component {
           )
         }
 
+        // Konten saat Deforestation point di klik
         const DfrsPopupContent = (props) => {
           const [pomContent, setPomContent] = useState([])
+          const [concContent, setConcContent] = useState([])
           const layerOptions = [
             { label : 'POM', value : this.layerPom  },
             { label : 'Reffinery', value : this.layerRefinery },
@@ -140,25 +155,32 @@ class MapApp extends React.Component {
           }
 
           const buttonOnClick = () => {
-            let geom = this.bufferLayer.graphics.getItemAt(0).geometry
-            // console.log(geom)
-            const query = new Query()
-            // query.where = "pomid = 7"
-            query.geometry = geom
-            query.spatialRelationship = "intersects";
-            this.layerPom.queryFeatures(query).then( response => {
-              // console.log(response.features)
-              let features = response.features
-              let pom = features.map(el => {
-                // console.log(el.attributes.PomName)
-                return el.attributes.PomName
+            console.log(this.bufferLayer.graphics.getItemAt(0))
+            let geom = ( this.bufferLayer.graphics.getItemAt(0) !== undefined ) ? this.bufferLayer.graphics.getItemAt(0).geometry : false
+            if(geom){
+              const query = new Query()
+              query.geometry = geom
+              query.spatialRelationship = "intersects";
+
+              // Querying POM
+              this.layerPom.queryFeatures(query).then( response => {
+                let features = response.features
+                let pom = features.map(el => {
+                  return el.attributes.PomName
+                })
+                setPomContent(pom)
               })
-              console.log(pom)
-              setPomContent(pom)
 
-            })
+              // Querying Concession
+              this.layerPlantationArea.queryFeatures(query).then( result => {
+                console.log(result.features)
+                let concession = result.features.map( el => {
+                  return el.attributes.Name
+                })
+                setConcContent(concession)
+              })
+            }
             // this.layerPom.definitionExpression = "pomid = 7"
-
           }
 
           return(
@@ -173,12 +195,17 @@ class MapApp extends React.Component {
               {/* <Checkbox.Group options={layerOptions} onChange={ props.onCheckboxChange } /> */}
               <Checkbox.Group options={layerOptions} onChange={ onCheckboxChange } />
               <Divider />
+              {pomContent.length > 0 ? <h2>POM</h2> : null}
               {pomContent.map(el => {
                 return <li key={el}>{el}</li>
               })}
+              {concContent.length > 0 ? <><br/><h2>Concession</h2></> : null}
+              {
+                concContent.map(el => <li key={el}>{el}</li>)
+              }
               <Divider />
               {/* <Button type="primary" onClick={ props.onClick }>Export to Report</Button> */}
-              <Button type="primary" onClick={ buttonOnClick }>Export to Report</Button>
+              <Button type="primary" onClick={ buttonOnClick }>Analysze</Button>
             </>
           )
         }
@@ -186,17 +213,16 @@ class MapApp extends React.Component {
         //===============================================================
         // BASE FUNCTION
         //===============================================================
-        
-        var polySym = {
-          type: "simple-fill", // autocasts as new SimpleFillSymbol()
-          color: [140, 140, 222, 0.5],
-          outline: {
-            color: [0, 0, 0, 0.5],
-            width: 2
-          }
-        };
-
-        let updateBufferGraphic = ( geometry,size ) => {
+        // Fungsi untuk menggambar buffer
+        const updateBufferGraphic = ( geometry,size ) => {
+          let polySym = {
+            type: "simple-fill", // autocasts as new SimpleFillSymbol()
+            color: [140, 140, 222, 0.5],
+            outline: {
+              color: [0, 0, 0, 0.5],
+              width: 2
+            }
+          };
           if (size > 0){
             var bufferGeometry = geometryEngine.geodesicBuffer( geometry, size, "kilometers")
             if(this.bufferLayer.graphics.length === 0){
@@ -214,8 +240,8 @@ class MapApp extends React.Component {
           }
         }
 
-        // Generate table to popup
-        let generateContent = (target, title) => {
+        // Generate isi dari popup
+        const generateContent = (target, title) => {
           console.log(target, title)
           
           let pomContent = ''
@@ -239,12 +265,7 @@ class MapApp extends React.Component {
               })
             }
 
-
-
-            // ReactDOM.render(<DfrsPopupContent onSliderChange={onSliderChange} onCheckboxChange={onCheckboxChange} />, popupDiv)
-            // ReactDOM.render(<DfrsPopupContent onSliderChange={onSliderChange} onClick={buttonOnClick} content={pomContent ? pomContent : null} />, popupDiv)
             ReactDOM.render(<DfrsPopupContent onSliderChange={onSliderChange} />, popupDiv)
-
           }
 
           return popupDiv
@@ -271,7 +292,7 @@ class MapApp extends React.Component {
           container: this.mapRef.current,
           map: map,
           center: [118, 0],
-          zoom: 5
+          zoom: 4
         });
 
         this.view.when(
@@ -321,6 +342,7 @@ class MapApp extends React.Component {
           popupEnabled: true,
           outFields: ['pomid', 'PomName', 'CompanyNam', 'PlaceName', 'Tankcap', 'Silocap']
         });
+        // this.layerPom = importedLayer.layerPom
 
         // GROUP DEFORESTATION
         //
@@ -457,6 +479,22 @@ class MapApp extends React.Component {
   }
 
   render() {
+    let dfrsContent
+    if(this.state.dfrsResult == null){
+      dfrsContent = <Result title="Please choose date range" />
+    }
+    else if(this.state.dfrsResult.length == 0){
+      dfrsContent = <Empty />
+    } 
+    else {
+      let content = []
+      this.state.dfrsResult.map( (features, index) => {
+        console.log(features)
+        content.push(<DfrsCard key={index} lat={features.attributes.POINT_X} lon={features.attributes.POINT_Y} startdate={features.attributes.start_date} enddate={features.attributes.end_date} peatland={features.attributes.peatland} mangrove={features.attributes.mangrove} other={features.attributes.other} total={features.attributes.total} index={index + 1}  />)
+      })
+        dfrsContent = <Space direction="vertical">{content}</Space>
+    }
+
     return (
       <React.Fragment>
         <div className="webmap" ref={this.mapRef} />
@@ -470,6 +508,10 @@ class MapApp extends React.Component {
           width={500}
         >
           <DeforestationForm onFinish={this.f_dfrsFormOnFinish} />
+          <Divider />
+          <div style={{display : 'flex', flexDirection : 'column', justifyContent : 'space-between'}}>
+            {dfrsContent}
+          </div>
         </Drawer>
       </React.Fragment>
     )
