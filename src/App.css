@@ -22,6 +22,12 @@
 
 .button-notif{
   position: absolute;
-  bottom: 15px;
+  bottom: 20px;
+  margin-left: 15px;
+}
+
+.button-clear{
+  position: absolute;
+  bottom: 75px;
   margin-left: 15px;
 }

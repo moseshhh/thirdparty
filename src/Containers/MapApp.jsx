@@ -4,6 +4,7 @@ import {ContextType} from '../Context'
 import { loadModules } from 'esri-loader';
 import { Button, Descriptions, Divider, Drawer, Slider, Checkbox, Space, Result, Empty } from 'antd'
 import ButtonNotif from '../Components/ButtonNotif';
+import ButtonClear from '../Components/ButtonClear';
 import DeforestationForm from '../Components/DeforestationForm';
 import DfrsCard from '../Components/DfrsCard'
 import moment from 'moment'
@@ -19,8 +20,11 @@ class MapApp extends React.Component {
     this.mapRef = React.createRef()
     this.state = {
       isDrawerShow : false,
-      dfrsResult : null
+      dfrsResult : null,
+      timedata : []
     }
+
+    this.f_fetchTimeDfrs()
   }
 
   //=============================================================
@@ -32,19 +36,51 @@ class MapApp extends React.Component {
     })
   }
 
-  f_dfrsFormOnFinish = (datamoment) => {
-    // console.log(datamoment["range-picker"][0].format("YYYY-MM-DD"))
-    let startDate = datamoment["range-picker"][0].format("YYYY-MM-DD")
-    let endDate = datamoment["range-picker"][1].format("YYYY-MM-DD")
+  f_dfrsFormOnFinish = (datamoment, type) => {
+    console.log(datamoment, type)
+    let startDate, endDate
+    if(type == "range-picker"){
+      startDate = datamoment["range-picker"][0].format("YYYY-MM-DD")
+      endDate = datamoment["range-picker"][1].format("YYYY-MM-DD")
+    }
+    else if(type == "period"){
+      console.log(datamoment["period-time"].split("|"))
+      let [start, end ] = datamoment["period-time"].split("|")
+
+      startDate = start
+      endDate = end
+    }
+
+    // let startDate = datamoment["range-picker"][0].format("YYYY-MM-DD")
+    // let endDate = datamoment["range-picker"][1].format("YYYY-MM-DD")
 
     let query =  this.layerDeforestationPoint.createQuery()
-    query.where = `start_date >= '${startDate}' and end_date <= '${endDate}'`
+    // query.where = `start_date >= '${startDate}' and end_date <= '${endDate}'`
+    query.where = `end_date >= '${startDate}' and end_date <= '${endDate}'`
     // this.layerDeforestationPoint.queryFeatures(query).then(response => console.log("query", response.features))
     this.layerDeforestationPoint.queryFeatures(query).then(response => this.setState({ dfrsResult : response.features }) )
 
     // this.layerDeforestationPoint.definitionExpression = `start_date >= '${startDate}' and end_date <= '${endDate}'`
     this.layerDeforestationPoint.definitionExpression = `end_date >= '${startDate}' and end_date <= '${endDate}'`
     this.layerDeforestationPoint.visible = true
+  }
+
+  f_zoomTo = (lat, lon) => {
+    console.log(lat, lon)
+    this.view.center = [lon, lat]
+    this.view.zoom = 13
+  }
+
+  f_fetchTimeDfrs = () => {
+    fetch(`https://idjktsvr10.wil.local/arcgis/rest/services/NewGISInteractiveMap/Deforestation/MapServer/0/query?f=json&outFields=[start_date,end_date]&where=1=1&returnGeometry=false`)
+      .then(response => response.json() )
+      .then( data => this.setState({
+        timedata : data.features
+      }) )
+  }
+
+  f_clearBufferLayers = () => {
+    this.bufferLayer.removeAll()
   }
 
   componentDidMount() {
@@ -282,7 +318,7 @@ class MapApp extends React.Component {
         //===============================================================
         // MAP INIT
         //===============================================================
-        const map = new ArcGISMap({
+        this.map = new ArcGISMap({
           basemap: 'streets-night-vector'
         });
 
@@ -291,7 +327,7 @@ class MapApp extends React.Component {
         //===============================================================
         this.view = new MapView({
           container: this.mapRef.current,
-          map: map,
+          map: this.map,
           center: [118, 0],
           zoom: 4
         });
@@ -353,7 +389,7 @@ class MapApp extends React.Component {
           visible : false,
           popupEnabled: true,
         });
-        map.add(this.layerDeforestationPoint)
+        this.map.add(this.layerDeforestationPoint)
 
         this.layerDeforestationArea = new FeatureLayer({
           url : "https://idjktsvr10.wil.local/arcgis/rest/services/NewGISInteractiveMap/Deforestation/MapServer/1",
@@ -375,7 +411,7 @@ class MapApp extends React.Component {
         this.bufferLayer = new GraphicsLayer({
           listMode : "hide"
         })
-        map.addMany([this.sketchLayer, this.bufferLayer])
+        this.map.addMany([this.sketchLayer, this.bufferLayer])
 
         // LAYER GROUPING
         //
@@ -394,7 +430,7 @@ class MapApp extends React.Component {
         glIndustries.addMany([ this.layerPkCrushing, this.layerRefinery, this.layerPom, ]);
         glPlantation.addMany([ this.layerPlantationArea, this.layerPlantationPoint ])
         glDeforestation.addMany([ this.layerDeforestationArea, this.layerDeforestationPoint,  ])
-        map.addMany([ glPlantation, glIndustries, glDeforestation]);
+        this.map.addMany([ glPlantation, glIndustries, glDeforestation]);
 
         //=================================================================
         // WIDGET
@@ -464,12 +500,11 @@ class MapApp extends React.Component {
             this.layerDeforestationArea.visible = false
           }
         })
-
       });
   }
 
   componentDidUpdate(){
-    console.log(this.context)
+    // console.log(this.context)
     // this.layerPlantationPoint.visible = true
   }
 
@@ -490,8 +525,7 @@ class MapApp extends React.Component {
     else {
       let content = []
       this.state.dfrsResult.map( (features, index) => {
-        console.log(features)
-        content.push(<DfrsCard key={index} lat={features.attributes.POINT_X} lon={features.attributes.POINT_Y} startdate={features.attributes.start_date} enddate={features.attributes.end_date} peatland={features.attributes.peatland} mangrove={features.attributes.mangrove} other={features.attributes.other} total={features.attributes.total} index={index + 1}  />)
+        content.push(<DfrsCard key={index} lat={features.attributes.POINT_X} lon={features.attributes.POINT_Y} startdate={features.attributes.start_date} enddate={features.attributes.end_date} peatland={features.attributes.peatland} mangrove={features.attributes.mangrove} other={features.attributes.other} total={features.attributes.total} index={index + 1} zoomTo={()=>this.f_zoomTo(features.attributes.POINT_Y, features.attributes.POINT_X) }  />)
       })
         dfrsContent = <Space direction="vertical">{content}</Space>
     }
@@ -500,6 +534,7 @@ class MapApp extends React.Component {
       <React.Fragment>
         <div className="webmap" ref={this.mapRef} />
         <ButtonNotif onClick={ ()=>this.f_showDrawer(true) } count={4} />
+        <ButtonClear onClick={ this.f_clearBufferLayers }  />
         <Drawer
           title="Deforestation"
           placement="right"
@@ -508,7 +543,7 @@ class MapApp extends React.Component {
           visible={this.state.isDrawerShow}
           width={500}
         >
-          <DeforestationForm onFinish={this.f_dfrsFormOnFinish} />
+          <DeforestationForm periodData={this.state.timedata} onFinish={this.f_dfrsFormOnFinish} />
           <Divider />
           <div style={{display : 'flex', flexDirection : 'column', justifyContent : 'space-between'}}>
             {dfrsContent}
