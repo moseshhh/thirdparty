@@ -68,7 +68,8 @@ const DeforestationForm = (props) => {
     return arr.reverse()
   }
 
-  let timesRange =  getDatesRange(moment("20190215"), moment())
+  // let timesRange =  getDatesRange(moment("20190215"), moment())
+  let timesRange = props.timesRange
 
   return (
     <Form name="deforestation_control" {...formItemLayout} onFinish={ (e) => props.onFinish(e, activeRadio) } >
@@ -97,7 +98,7 @@ const DeforestationForm = (props) => {
       <Form.Item wrapperCol={wrapperStyle} >
         <Space>
           <Button type="primary" htmlType="submit" id="button-form-deforestation">Submit</Button>
-          <Button type="primary" htmlType="submit" id="button-form-deforestation">Clear</Button>
+          <Button type="primary" onClick={props.onClear} >Clear</Button>
         </Space>
       </Form.Item>
     </Form>

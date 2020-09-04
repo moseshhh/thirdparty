@@ -31,3 +31,9 @@
   bottom: 75px;
   margin-left: 15px;
 }
+
+.spinner{
+  position: fixed;
+  bottom: 50vh;
+  right: 50vw;
+}

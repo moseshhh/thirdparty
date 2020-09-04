@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import {ContextType} from '../Context'
 import { loadModules } from 'esri-loader';
-import { Button, Descriptions, Divider, Drawer, Slider, Checkbox, Space, Result, Empty } from 'antd'
+import { Button, Descriptions, Divider, Drawer, Slider, Checkbox, Space, Result, Empty, Modal, InputNumber, Row, Col, Spin } from 'antd'
 import ButtonNotif from '../Components/ButtonNotif';
 import ButtonClear from '../Components/ButtonClear';
 import DeforestationForm from '../Components/DeforestationForm';
 import DfrsCard from '../Components/DfrsCard'
+import ModalContent from '../Components/ModalContent'
 import moment from 'moment'
 import PickerButton from 'antd/lib/date-picker/PickerButton';
 
@@ -21,7 +22,10 @@ class MapApp extends React.Component {
     this.state = {
       isDrawerShow : false,
       dfrsResult : null,
-      timedata : []
+      timedata : [],
+      showModal : false,
+      modalData : [],
+      isLoading : false
     }
 
     this.f_fetchTimeDfrs()
@@ -37,31 +41,27 @@ class MapApp extends React.Component {
   }
 
   f_dfrsFormOnFinish = (datamoment, type) => {
-    console.log(datamoment, type)
-    let startDate, endDate
+    let whereCond
     if(type == "range-picker"){
-      startDate = datamoment["range-picker"][0].format("YYYY-MM-DD")
-      endDate = datamoment["range-picker"][1].format("YYYY-MM-DD")
+      let startDate = datamoment["range-picker"][0].format("YYYY-MM-DD")
+      let endDate = datamoment["range-picker"][1].format("YYYY-MM-DD")
+      whereCond = `end_date >= '${startDate}' and end_date <= '${endDate}'`
     }
     else if(type == "period"){
-      console.log(datamoment["period-time"].split("|"))
       let [start, end ] = datamoment["period-time"].split("|")
-
-      startDate = start
-      endDate = end
+      whereCond = `end_date >= '${start}' and end_date <= '${end}'`
+    }
+    else if(type == "all"){
+      whereCond = ``
     }
 
-    // let startDate = datamoment["range-picker"][0].format("YYYY-MM-DD")
-    // let endDate = datamoment["range-picker"][1].format("YYYY-MM-DD")
-
+    // FILTER UNTUK CARD SELECTION
     let query =  this.layerDeforestationPoint.createQuery()
-    // query.where = `start_date >= '${startDate}' and end_date <= '${endDate}'`
-    query.where = `end_date >= '${startDate}' and end_date <= '${endDate}'`
-    // this.layerDeforestationPoint.queryFeatures(query).then(response => console.log("query", response.features))
+    query.where = whereCond
     this.layerDeforestationPoint.queryFeatures(query).then(response => this.setState({ dfrsResult : response.features }) )
 
-    // this.layerDeforestationPoint.definitionExpression = `start_date >= '${startDate}' and end_date <= '${endDate}'`
-    this.layerDeforestationPoint.definitionExpression = `end_date >= '${startDate}' and end_date <= '${endDate}'`
+    // FILTER DEFORESTASI DI LAYER
+    this.layerDeforestationPoint.definitionExpression = whereCond
     this.layerDeforestationPoint.visible = true
   }
 
@@ -83,6 +83,25 @@ class MapApp extends React.Component {
     this.bufferLayer.removeAll()
   }
 
+  f_getDatesRange(startdate, enddate){
+    let nextStartDate = startdate
+    let arr = []
+    while(nextStartDate <= enddate){
+      let start = nextStartDate.format()
+      let end = nextStartDate.add(13, 'days').format()
+      arr.push([ start, end ])
+      nextStartDate = nextStartDate.add(1, 'days')
+    }
+    return arr.reverse()
+  }
+
+  f_onClear = () => {
+    this.setState({ dfrsResult : null })
+    this.layerDeforestationPoint.visible = false
+  }
+  //
+  // LIFECYCLE
+  //
   componentDidMount() {
     loadModules(['esri/Map', 'esri/views/MapView', 'esri/layers/VectorTileLayer', 'esri/widgets/BasemapGallery', 'esri/widgets/Expand', "esri/widgets/LayerList", "esri/layers/FeatureLayer", "esri/layers/GroupLayer", "esri/Graphic", "esri/layers/GraphicsLayer", "esri/widgets/Legend", "esri/geometry/geometryEngine", "esri/core/watchUtils", "esri/widgets/DistanceMeasurement2D", "esri/tasks/support/Query"], { css: true }).then(
       ([ArcGISMap, MapView, VectorTileLayer, BasemapGallery, Expand, LayerList, FeatureLayer, GroupLayer, Graphic, GraphicsLayer, Legend, geometryEngine, watchUtils, DistanceMeasurement2D, Query]) => {
@@ -176,19 +195,23 @@ class MapApp extends React.Component {
         const DfrsPopupContent = (props) => {
           const [pomContent, setPomContent] = useState([])
           const [concContent, setConcContent] = useState([])
+          const [inputValue, setInputValue] = useState(0)
           const layerOptions = [
-            { label : 'POM', value : this.layerPom  },
-            { label : 'Reffinery', value : this.layerRefinery },
-            { label : 'Concession Area', value : this.layerPlantationArea }]
+            { label : 'POM', value : this.layerPom, key:"1"  },
+            { label : 'Reffinery', value : this.layerRefinery, key:"2" },
+            { label : 'Concession Area', value : this.layerPlantationArea, key:"3" }]
 
-          const onCheckboxChange = layerList => {
-            layerOptions.map( layer => {
-              if( layerList.includes( layer.value ) ){
-                layer.value.visible = true
-              } else{
-                layer.value.visible = false
-              } 
-            })
+          const updateLayerVisibility = (e) => {
+            if(e.target.checked){
+              e.target.value.visible = true
+            } else {
+              e.target.value.visible = false
+            }
+          }
+
+          const onChange = (value) => { 
+            setInputValue(value)
+            props.onSliderChange(value) 
           }
 
           const buttonOnClick = () => {
@@ -199,38 +222,61 @@ class MapApp extends React.Component {
               query.geometry = geom
               query.spatialRelationship = "intersects";
 
-              // Querying POM
-              this.layerPom.queryFeatures(query).then( response => {
-                let features = response.features
-                let pom = features.map(el => {
-                  return el.attributes.PomName
-                })
-                setPomContent(pom)
+              // // Querying POM
+              // this.layerPom.queryFeatures(query).then( response => {
+              //   let features = response.features
+              //   let pom = features.map(el => {
+              //     return el.attributes.PomName
+              //   })
+              //   setPomContent(pom)
+              // })
+
+              // // Querying Concession
+              // this.layerPlantationArea.queryFeatures(query).then( result => {
+              //   console.log(result.features)
+              //   let concession = result.features.map( el => {
+              //     return el.attributes.Name
+              //   })
+              //   setConcContent(concession)
+              // })
+
+              // const queryLayers = (layer, q) => {
+              //   return layer.queryFeatures(q).then( result => )
+              // }
+              this.setState({
+                isLoading : true
               })
 
-              // Querying Concession
-              this.layerPlantationArea.queryFeatures(query).then( result => {
-                console.log(result.features)
-                let concession = result.features.map( el => {
-                  return el.attributes.Name
-                })
-                setConcContent(concession)
-              })
+              Promise.all([this.layerPom.queryFeatures(query), this.layerPlantationArea.queryFeatures(query)]).then(result => {
+                // return result.map( featureSet => featureSet.features )
+                let featureSet = result.map( featureSet => featureSet.features )
+                this.setState({ modalData : featureSet})
+              }).then( () => this.setState({showModal : true, isLoading : false}) )
+
             }
-            // this.layerPom.definitionExpression = "pomid = 7"
           }
 
           return(
             <>
               <Divider />
               <h4>Buffer Radius in Kilometers</h4>
-              <div style={{width : '80%'}}>
-                <Slider defaultValue={0} tooltipVisible tooltipPlacement="bottom" onChange={ props.onSliderChange } />
+              {/* <div style={{width : '80%'}}> */}
+              <div>
+                <Row>
+                  <Col span={17} >
+                    <Slider defaultValue={inputValue} max={50} value = { typeof inputValue ==='number'? inputValue : 0 }tooltipPlacement="bottom" onChange={ onChange } 
+                    />
+                  </Col>
+                  <Col span={2}>
+                    <InputNumber min={0} max={50} style={{ margin: '0 16px' }} value={inputValue} onChange={onChange} />
+                  </Col>
+                </Row>
               </div>
               <Divider />
               <h4>Choose layer to include in analysis</h4>
-              {/* <Checkbox.Group options={layerOptions} onChange={ props.onCheckboxChange } /> */}
-              <Checkbox.Group options={layerOptions} onChange={ onCheckboxChange } />
+              {
+                layerOptions.map( opt => <Checkbox key={opt.key} value={opt.value} onChange={updateLayerVisibility} >{ opt.label }</Checkbox>)
+              }
               <Divider />
               {pomContent.length > 0 ? <h2>POM</h2> : null}
               {pomContent.map(el => {
@@ -242,7 +288,10 @@ class MapApp extends React.Component {
               }
               <Divider />
               {/* <Button type="primary" onClick={ props.onClick }>Export to Report</Button> */}
-              <Button type="primary" onClick={ buttonOnClick }>Analysze</Button>
+              <Space>
+                <Button type="primary" onClick={ buttonOnClick }>Analysze</Button>
+                <Button type="primary" onClick={()=>this.setState({showModal : true})} >Export to PDF</Button>
+              </Space>
             </>
           )
         }
@@ -533,6 +582,9 @@ class MapApp extends React.Component {
     return (
       <React.Fragment>
         <div className="webmap" ref={this.mapRef} />
+        <div className="spinner">
+          <Spin spinning={this.state.isLoading} size="large" tip="Loading..." />
+        </div>
         <ButtonNotif onClick={ ()=>this.f_showDrawer(true) } count={4} />
         <ButtonClear onClick={ this.f_clearBufferLayers }  />
         <Drawer
@@ -543,12 +595,22 @@ class MapApp extends React.Component {
           visible={this.state.isDrawerShow}
           width={500}
         >
-          <DeforestationForm periodData={this.state.timedata} onFinish={this.f_dfrsFormOnFinish} />
+          <DeforestationForm timesRange={this.f_getDatesRange(moment("20190215"), moment())} onFinish={this.f_dfrsFormOnFinish} onClear={this.f_onClear} />
           <Divider />
           <div style={{display : 'flex', flexDirection : 'column', justifyContent : 'space-between'}}>
             {dfrsContent}
           </div>
         </Drawer>
+        <Modal
+          title="Impacted"
+          visible={this.state.showModal}
+          onOk={(e)=>this.setState({showModal : false})}
+          onCancel={(e)=>this.setState({showModal : false})}
+          width="80vw"
+        >
+          <ModalContent data={this.state.modalData} />
+        </Modal>
+
       </React.Fragment>
     )
   }
