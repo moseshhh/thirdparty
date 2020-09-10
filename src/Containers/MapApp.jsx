@@ -25,7 +25,9 @@ class MapApp extends React.Component {
       timedata : [],
       showModal : false,
       modalData : [],
-      isLoading : false
+      isLoading : false,
+      dfrsPointGeom : [],
+      dfrsAreaGeom : null
     }
 
     this.f_fetchTimeDfrs()
@@ -193,8 +195,6 @@ class MapApp extends React.Component {
 
         // Konten saat Deforestation point di klik
         const DfrsPopupContent = (props) => {
-          const [pomContent, setPomContent] = useState([])
-          const [concContent, setConcContent] = useState([])
           const [inputValue, setInputValue] = useState(0)
           const layerOptions = [
             { label : 'POM', value : this.layerPom, key:"1"  },
@@ -202,11 +202,7 @@ class MapApp extends React.Component {
             { label : 'Concession Area', value : this.layerPlantationArea, key:"3" }]
 
           const updateLayerVisibility = (e) => {
-            if(e.target.checked){
-              e.target.value.visible = true
-            } else {
-              e.target.value.visible = false
-            }
+            e.target.value.visible = e.target.checked
           }
 
           const onChange = (value) => { 
@@ -215,40 +211,33 @@ class MapApp extends React.Component {
           }
 
           const buttonOnClick = () => {
-            console.log(this.bufferLayer.graphics.getItemAt(0))
             let geom = ( this.bufferLayer.graphics.getItemAt(0) !== undefined ) ? this.bufferLayer.graphics.getItemAt(0).geometry : false
             if(geom){
               const query = new Query()
               query.geometry = geom
-              query.spatialRelationship = "intersects";
+              query.spatialRelationship = "intersects"
+              query.returnGeometry = true
+              query.outFields = "*"
+              query.outSpatialReference = { wkid: 4326 };
 
-              // // Querying POM
-              // this.layerPom.queryFeatures(query).then( response => {
-              //   let features = response.features
-              //   let pom = features.map(el => {
-              //     return el.attributes.PomName
-              //   })
-              //   setPomContent(pom)
-              // })
+              console.log("id", props.id )
+              const query2 = new Query
+              query2.outFields = "*"
+              query2.returnGeometry = true
+              query2.where = `id = '${props.id}'`
 
-              // // Querying Concession
-              // this.layerPlantationArea.queryFeatures(query).then( result => {
-              //   console.log(result.features)
-              //   let concession = result.features.map( el => {
-              //     return el.attributes.Name
-              //   })
-              //   setConcContent(concession)
-              // })
+              this.layerDeforestationArea.queryFeatures(query2).then(
+                result => { 
+                  console.log("res", result.features[0].geometry)
+                  this.setState({
+                    dfrsAreaGeom : result.features[0].geometry
+                  })
+                }
+              )
 
-              // const queryLayers = (layer, q) => {
-              //   return layer.queryFeatures(q).then( result => )
-              // }
-              this.setState({
-                isLoading : true
-              })
+              this.setState({ isLoading : true })
 
               Promise.all([this.layerPom.queryFeatures(query), this.layerPlantationArea.queryFeatures(query)]).then(result => {
-                // return result.map( featureSet => featureSet.features )
                 let featureSet = result.map( featureSet => featureSet.features )
                 this.setState({ modalData : featureSet})
               }).then( () => this.setState({showModal : true, isLoading : false}) )
@@ -260,7 +249,6 @@ class MapApp extends React.Component {
             <>
               <Divider />
               <h4>Buffer Radius in Kilometers</h4>
-              {/* <div style={{width : '80%'}}> */}
               <div>
                 <Row>
                   <Col span={17} >
@@ -278,16 +266,6 @@ class MapApp extends React.Component {
                 layerOptions.map( opt => <Checkbox key={opt.key} value={opt.value} onChange={updateLayerVisibility} >{ opt.label }</Checkbox>)
               }
               <Divider />
-              {pomContent.length > 0 ? <h2>POM</h2> : null}
-              {pomContent.map(el => {
-                return <li key={el}>{el}</li>
-              })}
-              {concContent.length > 0 ? <><br/><h2>Concession</h2></> : null}
-              {
-                concContent.map(el => <li key={el}>{el}</li>)
-              }
-              <Divider />
-              {/* <Button type="primary" onClick={ props.onClick }>Export to Report</Button> */}
               <Space>
                 <Button type="primary" onClick={ buttonOnClick }>Analysze</Button>
                 <Button type="primary" onClick={()=>this.setState({showModal : true})} >Export to PDF</Button>
@@ -330,18 +308,20 @@ class MapApp extends React.Component {
         const generateContent = (target, title) => {
           console.log(target, title)
           
-          let pomContent = ''
-
           let popupDiv = document.createElement('div')
 
           if(title === "POM"){
             pomPopupTemplate.content = popupDiv
             ReactDOM.render(<DescriptionTable data={target.graphic.attributes} title={title} position={{ latitude: target.graphic.geometry.latitude, longitude: target.graphic.geometry.longitude }} />, popupDiv)
-          } else if (title === "Deforestation Point"){
+          } 
+          else if (title === "Deforestation Point"){
             dpPopupTemplate.content = popupDiv
 
             const onSliderChange = (bufferSize) => {
               let pointGeometry = target.graphic.geometry
+              this.setState({
+                dfrsPointGeom : pointGeometry
+              })
               updateBufferGraphic(pointGeometry, bufferSize)
             }
 
@@ -351,7 +331,7 @@ class MapApp extends React.Component {
               })
             }
 
-            ReactDOM.render(<DfrsPopupContent onSliderChange={onSliderChange} />, popupDiv)
+            ReactDOM.render(<DfrsPopupContent id={target.graphic.attributes.id} onSliderChange={onSliderChange} />, popupDiv)
           }
 
           return popupDiv
@@ -437,6 +417,7 @@ class MapApp extends React.Component {
           title : "Deforestation Point",
           visible : false,
           popupEnabled: true,
+          outFields : ['*']
         });
         this.map.add(this.layerDeforestationPoint)
 
@@ -608,7 +589,7 @@ class MapApp extends React.Component {
           onCancel={(e)=>this.setState({showModal : false})}
           width="80vw"
         >
-          <ModalContent data={this.state.modalData} />
+          <ModalContent data={this.state.modalData} location={this.state.dfrsPointGeom} dfrsArea={this.state.dfrsAreaGeom} />
         </Modal>
 
       </React.Fragment>
